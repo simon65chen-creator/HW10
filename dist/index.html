@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Memoria Italia — 義大利旅後記憶編譯與動態策展系統</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <style>
+    :root {
+      --bg-cream: #FAF7F2;
+      --bg-card: #FFFFFF;
+      --bg-warm: #F3EDE2;
+      --text-primary: #231F20;
+      --text-secondary: #5C554F;
+      --text-muted: #8C8278;
+      --terracotta: #B85233;
+      --terracotta-dark: #943E24;
+      --olive: #4A5D3F;
+      --gold: #C59B43;
+      --border: #E4DDD1;
+      --shadow-sm: 0 2px 8px rgba(35, 31, 32, 0.06);
+      --shadow-md: 0 8px 24px rgba(35, 31, 32, 0.09);
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-cream);
+      color: var(--text-primary);
+      line-height: 1.65;
+    }
+
+    /* Header / Hero */
+    header.hero {
+      background: linear-gradient(135deg, #2A211D 0%, #443127 55%, #6B422E 100%);
+      color: #FAF7F2;
+      padding: 3.5rem 1.5rem 2.75rem;
+      border-bottom: 4px solid var(--gold);
+    }
+    .container {
+      max-width: 1180px;
+      margin: 0 auto;
+    }
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-bottom: 1rem;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.78rem;
+      letter-spacing: 0.04em;
+      padding: 0.28rem 0.75rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #F5EBD9;
+    }
+    .badge.gold {
+      background: rgba(197, 155, 67, 0.25);
+      border-color: var(--gold);
+      color: #FFE6A3;
+    }
+    header.hero h1 {
+      font-size: clamp(1.85rem, 3.5vw, 2.7rem);
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      margin-bottom: 0.5rem;
+    }
+    header.hero p.subtitle {
+      color: #DFD5C7;
+      max-width: 780px;
+      font-size: 1.02rem;
+    }
+
+    /* Stats Bar */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+    .stat-card {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 12px;
+      padding: 1rem 1.2rem;
+      backdrop-filter: blur(6px);
+    }
+    .stat-value {
+      font-size: 1.7rem;
+      font-weight: 700;
+      color: #FFE4A0;
+      line-height: 1.2;
+    }
+    .stat-label {
+      font-size: 0.84rem;
+      color: #D8CEC0;
+      margin-top: 0.2rem;
+    }
+
+    /* Navigation Tabs */
+    nav.tabs {
+      position: sticky;
+      top: 0;
+      z-index: 900;
+      background: rgba(250, 247, 242, 0.94);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 1.5rem;
+    }
+    .tab-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .tab-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .tab-btn {
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      padding: 0.48rem 1rem;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .tab-btn:hover {
+      border-color: var(--terracotta);
+      color: var(--terracotta);
+    }
+    .tab-btn.active {
+      background: var(--terracotta);
+      border-color: var(--terracotta);
+      color: #FFF;
+    }
+    .search-box input {
+      padding: 0.48rem 0.95rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #FFF;
+      font-size: 0.88rem;
+      width: 240px;
+      outline: none;
+    }
+    .search-box input:focus {
+      border-color: var(--terracotta);
+    }
+
+    main {
+      padding: 2.2rem 1.5rem 4rem;
+    }
+    section.panel {
+      display: none;
+    }
+    section.panel.active {
+      display: block;
+      animation: fadeIn 0.25s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .section-header {
+      margin-bottom: 1.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 1rem;
+    }
+    .section-header h2 {
+      font-size: 1.55rem;
+      color: var(--text-primary);
+    }
+    .section-header p {
+      color: var(--text-secondary);
+      font-size: 0.94rem;
+    }
+
+    /* Portable Bundle Status Bar */
+    .portable-bar {
+      background: var(--bg-warm);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.85rem 1.2rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.8rem;
+      font-size: 0.88rem;
+    }
+    .portable-bar strong { color: var(--terracotta-dark); }
+    .mount-btn {
+      background: var(--olive);
+      color: #FFF;
+      border: none;
+      padding: 0.42rem 0.95rem;
+      border-radius: 8px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .mount-btn:hover { opacity: 0.9; }
+
+    /* Filter Pills */
+    .filter-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      margin-bottom: 1.4rem;
+    }
+    .pill {
+      border: 1px solid var(--border);
+      background: var(--bg-warm);
+      color: var(--text-secondary);
+      padding: 0.35rem 0.85rem;
+      border-radius: 999px;
+      font-size: 0.83rem;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+    .pill.active, .pill:hover {
+      background: var(--olive);
+      color: #FFF;
+      border-color: var(--olive);
+    }
+
+    /* Hero Gallery Grid */
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 1.6rem;
+    }
+    .photo-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.22s ease, box-shadow 0.22s ease;
+      display: flex;
+      flex-direction: column;
+    }
+    .photo-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-md);
+    }
+    .photo-visual {
+      height: 250px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 1rem;
+      color: #FFF;
+      overflow: hidden;
+      cursor: zoom-in;
+    }
+    .photo-visual img.real-photo {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 0;
+      transition: transform 0.4s ease;
+    }
+    .photo-card:hover .photo-visual img.real-photo {
+      transform: scale(1.04);
+    }
+    .photo-top-bar {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .path-chip {
+      background: rgba(24, 20, 18, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: #FFF;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.73rem;
+      padding: 0.24rem 0.62rem;
+      border-radius: 999px;
+      backdrop-filter: blur(4px);
+    }
+    .score-badge {
+      background: rgba(24, 20, 18, 0.82);
+      border: 1px solid rgba(255, 228, 160, 0.6);
+      color: #FFE4A0;
+      font-weight: 700;
+      font-size: 0.84rem;
+      padding: 0.26rem 0.7rem;
+      border-radius: 999px;
+      backdrop-filter: blur(4px);
+    }
+    .visual-meta {
+      position: relative;
+      z-index: 2;
+      background: linear-gradient(to top, rgba(16, 13, 11, 0.88) 0%, rgba(16, 13, 11, 0.45) 65%, transparent 100%);
+      margin: -1rem;
+      padding: 2.2rem 1rem 0.9rem;
+    }
+    .visual-filename {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.75rem;
+      opacity: 0.92;
+    }
+    .visual-caption-title {
+      font-size: 1.08rem;
+      font-weight: 700;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    }
+    .photo-body {
+      padding: 1.15rem 1.25rem 1.3rem;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 0.75rem;
+    }
+    .tag {
+      font-size: 0.76rem;
+      background: var(--bg-warm);
+      color: var(--terracotta-dark);
+      padding: 0.18rem 0.6rem;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+    .wiki-link-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.8rem;
+      background: #EEF2EB;
+      color: var(--olive);
+      border: 1px solid #CFD9C8;
+      padding: 0.22rem 0.6rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.15s;
+    }
+    .wiki-link-btn:hover {
+      background: var(--olive);
+      color: #FFF;
+    }
+    .curator-note {
+      font-size: 0.91rem;
+      color: var(--text-secondary);
+      margin-bottom: 1rem;
+    }
+    .card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 0.75rem;
+      border-top: 1px dashed var(--border);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    /* Entities Encyclopedia Grid */
+    .entities-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 1.5rem;
+    }
+    .entity-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+    }
+    .entity-card.highlighted {
+      border: 2px solid var(--terracotta);
+      box-shadow: 0 0 0 4px rgba(184, 82, 51, 0.12);
+    }
+    .entity-cover {
+      height: 195px;
+      position: relative;
+      cursor: zoom-in;
+      overflow: hidden;
+    }
+    .entity-cover img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .entity-cover-caption {
+      position: absolute;
+      bottom: 0;
+      inset-inline: 0;
+      padding: 1.2rem 1rem 0.65rem;
+      background: linear-gradient(to top, rgba(16, 13, 11, 0.85), transparent);
+      color: #FFF;
+      font-size: 0.76rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .entity-content {
+      padding: 1.35rem 1.5rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+      flex: 1;
+    }
+    .entity-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+    .entity-slug {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.8rem;
+      color: var(--terracotta);
+      background: #FDF1ED;
+      padding: 0.2rem 0.55rem;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+    .entity-city {
+      font-size: 0.8rem;
+      color: var(--olive);
+      background: #EEF2EB;
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      font-weight: 600;
+    }
+    .entity-title {
+      font-size: 1.28rem;
+      font-weight: 700;
+      margin-top: 0.2rem;
+    }
+    .entity-local {
+      font-style: italic;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+    .yaml-box {
+      background: #252220;
+      color: #E8DFD3;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.76rem;
+      padding: 0.75rem 0.9rem;
+      border-radius: 8px;
+      line-height: 1.45;
+      overflow-x: auto;
+    }
+    .yaml-key { color: #E5A95C; }
+    .yaml-str { color: #9FD39C; }
+    .entity-bullets {
+      padding-left: 1.15rem;
+      color: var(--text-secondary);
+      font-size: 0.91rem;
+    }
+    .entity-bullets li {
+      margin-bottom: 0.45rem;
+    }
+
+    /* Map & Timeline Split */
+    .map-layout {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 1.5rem;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .map-layout { grid-template-columns: 1fr; }
+    }
+    #italy-map {
+      height: 460px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+      z-index: 1;
+    }
+    .timeline-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .timeline-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--terracotta);
+      border-radius: 10px;
+      padding: 1rem 1.2rem;
+      box-shadow: var(--shadow-sm);
+    }
+    .timeline-day {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--terracotta);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .timeline-title {
+      font-size: 1.08rem;
+      font-weight: 700;
+      margin: 0.15rem 0 0.4rem;
+    }
+    .timeline-desc {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    /* Anchors Table */
+    .anchor-table-wrap {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow-x: auto;
+      box-shadow: var(--shadow-sm);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.91rem;
+    }
+    th, td {
+      padding: 0.9rem 1.1rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    th {
+      background: var(--bg-warm);
+      color: var(--text-primary);
+      font-weight: 700;
+    }
+    tr:last-child td { border-bottom: none; }
+    .anchor-thumb {
+      width: 72px;
+      height: 54px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      cursor: zoom-in;
+      display: block;
+    }
+
+    /* Modal & Lightbox */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(20, 17, 15, 0.78);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      z-index: 1200;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal-card {
+      background: var(--bg-card);
+      max-width: 780px;
+      width: 100%;
+      border-radius: 16px;
+      padding: 1.75rem;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal-photo-preview {
+      width: 100%;
+      max-height: 450px;
+      object-fit: contain;
+      background: #181514;
+      border-radius: 12px;
+      margin-bottom: 1rem;
+      display: block;
+    }
+    .modal-close {
+      float: right;
+      border: none;
+      background: var(--bg-warm);
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      font-size: 1.1rem;
+      cursor: pointer;
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: var(--text-muted);
+      font-size: 0.84rem;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+  <header class="hero">
+    <div class="container">
+      <div class="badge-row">
+        <span class="badge gold">🇮🇹 Portable Multimodal LLM Wiki</span>
+        <span class="badge">Relative Asset Path: ./photos/</span>
+        <span class="badge">Compiled: 2026-11-15</span>
+      </div>
+      <h1>Memoria Italia — 旅後記憶編譯與動態策展系統</h1>
+      <p class="subtitle">
+        採用可攜式目錄架構（<code>DIST/index.html</code> + <code>DIST/photos/</code>），所有精選實拍影像皆以相對路徑 <code>./photos/</code> 集中封裝，無論在雲端或搬移至任意電腦、隨身碟皆可離線正常展示。
+      </p>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value">41 張</div>
+          <div class="stat-label">精簡後留存素材 (PHOTOS/)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">9 張</div>
+          <div class="stat-label">策展入選與封裝 (DIST/photos/)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">4 個節點</div>
+          <div class="stat-label">文化地標百科 (WIKI/entities/)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">4 份憑證</div>
+          <div class="stat-label">已解析事件錨點 (context_anchor)</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <div class="container tab-bar">
+      <div class="tab-buttons">
+        <button class="tab-btn active" data-tab="gallery">🏆 最美記憶畫廊 (Hero Shots)</button>
+        <button class="tab-btn" data-tab="entities">🏛️ 景點文化百科 (Wiki Entities)</button>
+        <button class="tab-btn" data-tab="map-timeline">🗺️ 足跡地圖與時間軸</button>
+        <button class="tab-btn" data-tab="anchors">🧾 線索憑證錨點 (Context Anchors)</button>
+      </div>
+      <div class="search-box">
+        <input type="text" id="global-search" placeholder="搜尋地標、檔名、城市或標籤..." />
+      </div>
+    </div>
+  </nav>
+
+  <main class="container">
+    <!-- Portable Directory Status Bar -->
+    <div class="portable-bar">
+      <div>
+        <strong>📦 可攜式套件模式（Portable Bundle）：</strong> 所有圖片預設讀取同層目錄下的 <code>./photos/&lt;檔名&gt;</code>，將 <code>DIST/</code> 整個資料夾打包帶走即可離線瀏覽。
+        <span id="mount-status" style="margin-left:0.4rem; color:var(--olive); font-weight:600;">（目前路徑：./photos/）</span>
+      </div>
+      <div>
+        <input type="file" id="local-folder-input" webkitdirectory directory multiple style="display:none;" />
+        <button class="mount-btn" onclick="document.getElementById('local-folder-input').click()">📂 手動指定 photos 資料夾（備用）</button>
+      </div>
+    </div>
+
+    <!-- Panel 1: Hero Gallery -->
+    <section id="panel-gallery" class="panel active">
+      <div class="section-header">
+        <div>
+          <h2>🏆 Top 最美照片記憶精選榜（./photos/ 實拍策展）</h2>
+          <p>精簡後保留的封面級實拍照片，全部集中複製於 <code>DIST/photos/</code> 目錄，點擊圖片可放大檢視原圖，點擊 <code>[[entity-slug]]</code> 可跳轉文化百科。</p>
+        </div>
+      </div>
+
+      <div class="filter-pills" id="city-filters">
+        <button class="pill active" data-city="ALL">全部城市 (8)</button>
+        <button class="pill" data-city="Venice">威尼斯 Venice</button>
+        <button class="pill" data-city="Florence">佛羅倫斯 Florence</button>
+        <button class="pill" data-city="Rome">羅馬 Rome</button>
+        <button class="pill" data-city="Tuscany">托斯卡尼 Tuscany</button>
+      </div>
+
+      <div class="gallery-grid" id="gallery-container"></div>
+    </section>
+
+    <!-- Panel 2: Entities Encyclopedia -->
+    <section id="panel-entities" class="panel">
+      <div class="section-header">
+        <div>
+          <h2>🏛️ 文化地標與藝術知識圖譜（WIKI/entities/）</h2>
+          <p>每張百科卡片皆透過相對路徑 <code>./photos/</code> 綁定實拍主視覺（<code>best_photo</code>）與標準 YAML Frontmatter 結構。</p>
+        </div>
+      </div>
+      <div class="entities-grid" id="entities-container"></div>
+    </section>
+
+    <!-- Panel 3: Map & Timeline -->
+    <section id="panel-map-timeline" class="panel">
+      <div class="section-header">
+        <div>
+          <h2>🗺️ 義大利地理足跡與每日行程時間軸</h2>
+          <p>結合 GPS 座標聚類與旅行社行程表（<code>EUD103010BR6.pdf</code>）還原的時空軌跡，地圖標記點與時間軸皆內嵌 <code>./photos/</code> 實拍預覽。</p>
+        </div>
+      </div>
+      <div class="map-layout">
+        <div id="italy-map"></div>
+        <div class="timeline-list" id="timeline-container"></div>
+      </div>
+    </section>
+
+    <!-- Panel 4: Context Anchors -->
+    <section id="panel-anchors" class="panel">
+      <div class="section-header">
+        <div>
+          <h2>🧾 隱性線索憑證與事件錨點（context_anchor）</h2>
+          <p>用於精準還原行程時間軸、在地物產價格與餐廳消費脈絡的憑證紀錄。</p>
+        </div>
+      </div>
+      <div class="anchor-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>憑證預覽</th>
+              <th>日期 / 關聯天數</th>
+              <th>憑證類型與相對路徑</th>
+              <th>辨識內容與多模態推論</th>
+              <th>關聯節點</th>
+            </tr>
+          </thead>
+          <tbody id="anchors-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Entity & Photo Lightbox Modal -->
+  <div class="modal-backdrop" id="entity-modal" onclick="closeModal(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div id="modal-content"></div>
+    </div>
+  </div>
+
+  <footer>
+    Memoria Italia — Portable Static Bundle (DIST/index.html + DIST/photos/) · Compiled by Gemini Wiki Maintainer (2026-11-15)
+  </footer>
+
+  <script>
+    // 所有引用照片皆統一放在同目錄下的 ./photos/，並保留 Drive 備援縮圖以防單獨開啟 HTML 時破圖
+    const PHOTO_MANIFEST = {
+      "IMG_20261102_185304.jpg": {
+        localPath: "./photos/IMG_20261102_185304.jpg",
+        driveThumb: "https://drive.google.com/thumbnail?id=1meivrAXjJaIyzJyq_j7bBnfjdE8gfXZu&sz=w1400"
+      },
+      "IMG_20261103_143251.jpg": {
+        localPath: "./photos/IMG_20261103_143251.jpg",
+        driveThumb: "https://drive.google.com/thumbnail?id=1xz2uLBdQWzqYVa4UIUa45DIKZ-ii8e5X&sz=w1400"
+      },
+      "IMG_20261104_112131.jpg": {
+        localPath: "./photos/IMG_20261104_112131.jpg",
+        driveThumb: "https://drive.google.com/thumbnail?id=1O9Yhze6zEc1k7Y1Xw1OREc1Eqse8xMtG&sz=w1400"
+      },
+      "IMG_20261104_115048.jpg": {
+        localPath: "./photos/IMG_20261104_115048.jpg",
+        driveThumb: "https://drive.google.com/thumbnail?id=1LBx_BLsuX-LGBoCvGvoaI4qEh3Bjpp7v&sz=w1400"
+      },
+      "IMG_20261105_143156.jpg": {
+        localPath: "./photos/IMG_20261105_143156.jpg",
+        driveThumb: "https://drive.google.com/thumbnail?id=1Dp0IonhrVV_bUtcsbYm3CBrqvLI_901Y&sz=w1400"
+      },
+      "IMG_20261105_131908.jpg": {
+        localPath: "./photos/IMG_20261105_131908.jpg",
+        driveThumb: "https://drive.google.com/thumbnail?id=1pJMPpseI2l6_XgIW8gp0IziQ4-79ehjY&sz=w1400"
+      },
+      "IMG_20261105_131155.jpg": {
+        localPath: "./photos/IMG_20261105_131155.jpg",
+        driveThumb: "https://drive.google.com/thumbnail?id=1Fy2H0c3HG9Qzs7CjLMM7UOT9POyEwGNz&sz=w1400"
+      },
+      "IMG_20261101_105750.jpg": {
+        localPath: "./photos/IMG_20261101_105750.jpg",
+        driveThumb: "https://drive.google.com/thumbnail?id=1owkGlJZhc41YPsthenE2vCG3Og-N62M7&sz=w1400"
+      },
+      "IMG_20261101_164517.jpg": {
+        localPath: "./photos/IMG_20261101_164517.jpg",
+        driveThumb: "https://drive.google.com/thumbnail?id=1Q0OOj7Jjs8vvYGMWe-6Zb9XAM0noXONX&sz=w1400"
+      }
+    };
+
+    const userSelectedBlobMap = {};
+
+    function getPrimarySrc(filename) {
+      if (userSelectedBlobMap[filename]) return userSelectedBlobMap[filename];
+      return PHOTO_MANIFEST[filename] ? PHOTO_MANIFEST[filename].localPath : `./photos/${filename}`;
+    }
+
+    function getFallbackSrc(filename) {
+      return PHOTO_MANIFEST[filename] ? PHOTO_MANIFEST[filename].driveThumb : "";
+    }
+    function handleImgError(img, filename) {
+      const fb1 = getFallbackSrc(filename);
+      if (fb1 && img.dataset.step !== "fb1" && img.dataset.step !== "fb2") {
+        img.dataset.step = "fb1";
+        img.src = fb1;
+        return;
+      }
+      const match = fb1.match(/id=([^&]+)/);
+      if (match && img.dataset.step === "fb1") {
+        img.dataset.step = "fb2";
+        img.src = `https://lh3.googleusercontent.com/d/${match[1]}=w1200`;
+        return;
+      }
+      img.style.display = "none";
+    }
+
+    // 若使用者想手動選擇 photos 資料夾（例如在受限沙盒環境預覽），亦可即時掛載
+    document.getElementById("local-folder-input").addEventListener("change", (e) => {
+      const files = Array.from(e.target.files || []);
+      let matched = 0;
+      files.forEach(file => {
+        if (PHOTO_MANIFEST[file.name]) {
+          userSelectedBlobMap[file.name] = URL.createObjectURL(file);
+          matched++;
+        }
+      });
+      if (matched > 0) {
+        document.getElementById("mount-status").textContent = `（已手動掛載本機目錄，共載入 ${matched} 張原圖）`;
+        const activeCity = document.querySelector("#city-filters .pill.active").dataset.city;
+        const kw = document.getElementById("global-search").value;
+        renderGallery(activeCity, kw);
+        renderEntities(kw);
+        renderTimeline();
+        renderAnchors();
+      } else {
+        alert("所選資料夾內未找到對應的精選照片檔名，請繼續使用預設 ./photos/ 相對路徑。");
+      }
+    });
+
+    const ENTITIES = [
+      {
+        entity_id: "st-marks-basilica-venice",
+        name_zh: "威尼斯聖馬可廣場與水都運河",
+        name_local: "Piazza San Marco & Canal Grande, Venezia",
+        category: "Architecture / Waterfront Heritage",
+        city: "Venice",
+        city_zh: "威尼斯",
+        coordinates: [45.4342, 12.3388],
+        visit_dates: ["2026-11-01"],
+        timeline_slug: "day-03-venice",
+        best_photo: "IMG_20261101_105750.jpg",
+        fallbackGradient: "linear-gradient(135deg, #1F4E5F 0%, #3E7B8C 55%, #B8A47E 100%)",
+        highlights: [
+          "威尼斯（Venezia）建於亞得里亞海潟湖 118 座小島之上，自中世紀起成為連接東西方貿易的海上共和國（Serenissima）心臟。",
+          "聖馬可廣場被拿破崙譽為「歐洲最美的客廳」，融合拜占庭金色馬賽克圓頂、哥德式總督宮與文藝復興連拱廊。",
+          "搭乘傳統鳳尾船貢多拉（Gondola）穿梭於水巷與嘆息橋之間，體驗獨特的水上城市建築與光影倒影。"
+        ],
+        curator_tip: "收錄 Day 3 威尼斯上午水岸建築（10:57:50）與傍晚潟湖餘暉（16:45:17），完整補齊北義水都記憶。"
+      },
+      {
+        entity_id: "santa-maria-del-fiore",
+        name_zh: "聖母百花大教堂",
+        name_local: "Cattedrale di Santa Maria del Fiore",
+        category: "Architecture / Landmark",
+        city: "Florence",
+        city_zh: "佛羅倫斯",
+        coordinates: [43.7731, 11.2560],
+        visit_dates: ["2026-11-02"],
+        timeline_slug: "day-04-florence",
+        best_photo: "IMG_20261102_185304.jpg",
+        fallbackGradient: "linear-gradient(135deg, #2B3A55 0%, #6E3B3B 55%, #D97D54 100%)",
+        highlights: [
+          "始建於 1296 年，由建築師阿諾爾福·迪·坎比奧設計，歷時逾 140 年完工，為佛羅倫斯共和國榮耀象徵。",
+          "布魯內萊斯基（Filippo Brunelleschi）於 1420–1436 年創新採用無鷹架「魚骨砌磚法（Herringbone Brickwork）」與內外雙層殼體結構，打造直徑 45.5 公尺的全球最大磚造穹頂。",
+          "外牆以卡拉拉白、普拉托綠與馬雷瑪粉紅三色大理石鑲嵌幾何圖案，與喬托鐘樓及聖若望洗禮堂構成經典天際線。"
+        ],
+        curator_tip: "精簡後保留傍晚 18:53 佛羅倫斯夜色代表作（./photos/IMG_20261102_185304.jpg），完美呈現紅磚穹頂與街燈對比。"
+      },
+      {
+        entity_id: "colosseum",
+        name_zh: "羅馬競技場（鬥獸場）",
+        name_local: "Colosseo / Anfiteatro Flavio",
+        category: "Architecture / Landmark",
+        city: "Rome",
+        city_zh: "羅馬",
+        coordinates: [41.8902, 12.4922],
+        visit_dates: ["2026-11-04"],
+        timeline_slug: "day-06-rome",
+        best_photo: "IMG_20261104_112131.jpg",
+        fallbackGradient: "linear-gradient(135deg, #5C4938 0%, #9E7B56 55%, #D6B588 100%)",
+        highlights: [
+          "正式名稱為「弗拉維圓形劇場（Anfiteatro Flavio）」，建於公元 72–80 年，可容納 5 萬至 8 萬名觀眾。",
+          "高約 48 公尺，外部立面採用多立克（Doric）、愛奧尼（Ionic）與科林斯（Corinthian）三層疊柱式設計，結合羅馬混凝土與石灰華打造 80 道拱門。",
+          "木質舞台下方設有兩層地下迷宮（Hypogeum）與配重升降機械，可將角鬥士與猛獸瞬間升至場中央。"
+        ],
+        curator_tip: "精簡後保留 11:21:31（建築全貌）與 11:50:48（拱門細節）兩張最具代表性的高解析實拍。"
+      },
+      {
+        entity_id: "val-dorcia-tuscany",
+        name_zh: "托斯卡尼奧爾恰山谷與皮恩扎",
+        name_local: "Val d'Orcia & Pienza, Toscana",
+        category: "Landscape / Cultural Heritage",
+        city: "Tuscany",
+        city_zh: "托斯卡尼",
+        coordinates: [43.0631, 11.5528],
+        visit_dates: ["2026-11-05"],
+        timeline_slug: "day-07-tuscany",
+        best_photo: "IMG_20261105_131908.jpg",
+        fallbackGradient: "linear-gradient(135deg, #3E5233 0%, #8E7F3E 52%, #DF9A44 100%)",
+        highlights: [
+          "2004 年列入 UNESCO 世界文化遺產，連綿丘陵、農場莊園與山脊蜿蜒的義大利絲柏樹（Cypress Trees）是文藝復興理想田園景觀的化身。",
+          "皮恩扎（Pienza）由教宗庇護二世按文藝復興人文主義城市規劃重建，並以「皮恩扎羊奶起司（Pecorino di Pienza）」聞名。",
+          "14 至 15 世紀錫耶納畫派經常以此地景作為畫作背景，體現人與自然和諧共處的治理美學。"
+        ],
+        curator_tip: "精簡後完整保留托斯卡尼陽光高光時刻（13:19:08）與皮恩扎理想山城漫步（14:31:56）。"
+      }
+    ];
+
+    const HERO_SHOTS = [
+      {
+        rank: 1,
+        title: "佛羅倫斯暮色與百花大教堂",
+        filename: "IMG_20261102_185304.jpg",
+        score: 9.4,
+        city: "Florence",
+        city_zh: "佛羅倫斯",
+        date: "2026-11-02 18:53",
+        entity_id: "santa-maria-del-fiore",
+        tags: ["#BlueHour", "#Florence", "#Architecture"],
+        note: "精簡後留存的佛羅倫斯傍晚 18:53 精華視角，文藝復興紅磚穹頂與老城區暖黃街燈交織出極具故事張力的夜色剪影。",
+        fallbackGradient: "linear-gradient(135deg, #1E2B45 0%, #6A3937 58%, #E08A4F 100%)"
+      },
+      {
+        rank: 2,
+        title: "羅馬帝國榮光：鬥獸場石灰華立面",
+        filename: "IMG_20261104_112131.jpg",
+        score: 9.2,
+        city: "Rome",
+        city_zh: "羅馬",
+        date: "2026-11-04 11:21",
+        entity_id: "colosseum",
+        tags: ["#Architecture", "#Rome", "#Colosseum"],
+        note: "上午順光角度完整捕捉古羅馬三層疊柱式拱門與巨型外牆結構，細節銳利、氣勢恢弘。",
+        fallbackGradient: "linear-gradient(135deg, #4B3A2C 0%, #99744E 55%, #D9B786 100%)"
+      },
+      {
+        rank: 3,
+        title: "托斯卡尼陽光下的皮恩扎山城",
+        filename: "IMG_20261105_143156.jpg",
+        score: 9.1,
+        city: "Tuscany",
+        city_zh: "托斯卡尼 · 皮恩扎",
+        date: "2026-11-05 14:31",
+        entity_id: "val-dorcia-tuscany",
+        tags: ["#Tuscany", "#Pienza", "#Renaissance"],
+        note: "午後斜射陽光灑落在教宗庇護二世打造的文藝復興理想城市石牆上，色彩溫潤飽滿。",
+        fallbackGradient: "linear-gradient(135deg, #6E5438 0%, #B6884B 55%, #E8C587 100%)"
+      },
+      {
+        rank: 4,
+        title: "奧爾恰山谷午後光影與丘陵地景",
+        filename: "IMG_20261105_131908.jpg",
+        score: 9.0,
+        city: "Tuscany",
+        city_zh: "托斯卡尼 · 奧爾恰山谷",
+        date: "2026-11-05 13:19",
+        entity_id: "val-dorcia-tuscany",
+        tags: ["#ValdOrcia", "#Tuscany", "#UNESCO"],
+        note: "午後兩點清朗陽光灑落托斯卡尼起伏丘陵與莊園田野，層次通透飽滿，呈現如錫耶納畫派般的經典田園美學。",
+        fallbackGradient: "linear-gradient(135deg, #394C2E 0%, #8B7B38 50%, #E0933C 100%)"
+      },
+      {
+        rank: 5,
+        title: "鬥獸場內部結構與拱廊光影",
+        filename: "IMG_20261104_115048.jpg",
+        score: 8.8,
+        city: "Rome",
+        city_zh: "羅馬",
+        date: "2026-11-04 11:50",
+        entity_id: "colosseum",
+        tags: ["#Colosseum", "#Rome", "#CuratedHighlight"],
+        note: "近距離記錄競技場石砌拱廊與看台層次，與 11:21 外觀全景照形成內外互補的雙重視角。",
+        fallbackGradient: "linear-gradient(135deg, #524234 0%, #8F6F4E 55%, #C9A97E 100%)"
+      },
+      {
+        rank: 6,
+        title: "羅馬特雷維噴泉巴洛克雕塑群",
+        filename: "IMG_20261103_143251.jpg",
+        score: 8.7,
+        city: "Rome",
+        city_zh: "羅馬 · 特雷維噴泉",
+        date: "2026-11-03 14:32",
+        entity_id: "colosseum",
+        tags: ["#TreviFountain", "#Baroque", "#Rome"],
+        note: "記錄 Day 5 羅馬古城巡禮高光時刻，海神殿堂大理石雕刻與碧藍池水在午後陽光下層次分明。",
+        fallbackGradient: "linear-gradient(135deg, #2D4E5E 0%, #5B8291 55%, #B8C9CE 100%)"
+      },
+      {
+        rank: 7,
+        title: "水都威尼斯：聖馬可水岸與古典宮殿群",
+        filename: "IMG_20261101_105750.jpg",
+        score: 8.9,
+        city: "Venice",
+        city_zh: "威尼斯 · 聖馬可水岸",
+        date: "2026-11-01 10:57",
+        entity_id: "st-marks-basilica-venice",
+        tags: ["#Venice", "#SanMarco", "#Canal"],
+        note: "上午十一點清朗海風下的威尼斯本島水岸，哥德式柱廊與潟湖波光交相輝映，展現海上共和國的昔日榮光。",
+        fallbackGradient: "linear-gradient(135deg, #1E4D5C 0%, #447A8A 55%, #C9B58C 100%)"
+      },
+      {
+        rank: 8,
+        title: "威尼斯潟湖暮光與貢多拉水巷風情",
+        filename: "IMG_20261101_164517.jpg",
+        score: 8.8,
+        city: "Venice",
+        city_zh: "威尼斯 · 水巷暮色",
+        date: "2026-11-01 16:45",
+        entity_id: "st-marks-basilica-venice",
+        tags: ["#Venice", "#Gondola", "#Sunset"],
+        note: "秋日午後 16:45 柔和斜陽灑落威尼斯運河水面，記錄水都靜謐優雅的黃昏時刻。",
+        fallbackGradient: "linear-gradient(135deg, #2D3E50 0%, #6D5B6E 55%, #D99B66 100%)"
+      }
+    ];
+
+    const TIMELINE = [
+      {
+        day: "Day 3 · 2026-11-01",
+        title: "水都威尼斯漫遊：聖馬可廣場與貢多拉鳳尾船",
+        entity_id: "st-marks-basilica-venice",
+        photo: "IMG_20261101_105750.jpg",
+        desc: "暢遊 [[st-marks-basilica-venice]] 與大運河水岸，搭乘貢多拉穿梭水巷，收錄上午水岸全景（10:57）與傍晚潟湖餘暉（16:45）。"
+      },
+      {
+        day: "Day 4 · 2026-11-02",
+        title: "佛羅倫斯老城漫步與百花大教堂暮色",
+        entity_id: "santa-maria-del-fiore",
+        photo: "IMG_20261102_185304.jpg",
+        desc: "威尼斯搭乘高速列車抵達文藝復興搖籃佛羅倫斯，紀錄 [[santa-maria-del-fiore]] 雙層紅磚穹頂與傍晚 18:53 藍調街景。"
+      },
+      {
+        day: "Day 5 · 2026-11-03",
+        title: "羅馬假期古城巡禮：特雷維噴泉與梵諦岡",
+        entity_id: "colosseum",
+        photo: "IMG_20261103_143251.jpg",
+        desc: "走訪特雷維噴泉（Trevi Fountain）與聖彼得大教堂，精簡保留午後 14:32 噴泉雕塑代表作。"
+      },
+      {
+        day: "Day 6 · 2026-11-04",
+        title: "永恆之城羅馬：競技場建築力學巡禮",
+        entity_id: "colosseum",
+        photo: "IMG_20261104_112131.jpg",
+        desc: "深入探索 [[colosseum]] 三層疊柱拱門與地下迷宮，保留外觀全貌與內部拱廊兩張精選實拍。"
+      },
+      {
+        day: "Day 7 · 2026-11-05",
+        title: "托斯卡尼田園詩：皮恩扎理想之城與奧爾恰山谷",
+        entity_id: "val-dorcia-tuscany",
+        photo: "IMG_20261105_131908.jpg",
+        desc: "漫遊 [[val-dorcia-tuscany]]，串聯奧爾恰山谷午後光影（13:19）與皮恩扎山城漫步（14:31）田園軌跡。"
+      }
+    ];
+
+    const ANCHORS = [
+      {
+        filename: "IMG_20261105_131155.jpg",
+        date: "2026-11-05",
+        dayLabel: "Day 7 托斯卡尼",
+        type: "托斯卡尼午餐 / 行程節點影像",
+        summary: "精簡後留存的 Day 7 午間紀錄（./photos/IMG_20261105_131155.jpg），作為串聯羅馬北上至皮恩扎山城之間的時間錨點。",
+        entity_id: "val-dorcia-tuscany"
+      },
+      {
+        filename: "IMG_20261103_143251.jpg",
+        date: "2026-11-03",
+        dayLabel: "Day 5 羅馬市區",
+        type: "地標銘文與巴洛克噴泉實拍",
+        summary: "畫面清晰記錄特雷維噴泉上方教宗本篤十四世（Benedictus XIV）拉丁文竣工銘文，精準鎖定羅馬市區步行座標。",
+        entity_id: "colosseum"
+      }
+    ];
+
+    function formatWikiLinks(text) {
+      return text.replace(/\[\[([a-z0-9\-]+)\]\]/g, (_, slug) => {
+        return `<button class="wiki-link-btn" onclick="jumpToEntity('${slug}')">[[${slug}]]</button>`;
+      });
+    }
+
+    function openPhotoLightbox(filename, caption, subcaption) {
+      const primarySrc = getPrimarySrc(filename);
+      const fallbackSrc = getFallbackSrc(filename);
+      document.getElementById("modal-content").innerHTML = `
+        <h3 style="margin-bottom:0.25rem;">${caption}</h3>
+        <p style="font-size:0.83rem; color:var(--text-muted); margin-bottom:0.85rem;">相對路徑：<code>./photos/${filename}</code></p>
+        <img class="modal-photo-preview" src="${primarySrc}" onerror="if(this.src!=='${fallbackSrc}'){this.src='${fallbackSrc}';}" alt="${caption}" />
+        <p style="font-size:0.93rem; color:var(--text-secondary); margin-bottom:0.6rem;">${subcaption}</p>
+        <div style="font-size:0.8rem; color:var(--olive); font-weight:600;">
+          ✓ 已封裝於 DIST/photos/${filename}，支援離線隨身攜帶展示
+        </div>
+      `;
+      document.getElementById("entity-modal").classList.add("open");
+    }
+
+    function renderGallery(cityFilter = "ALL", keyword = "") {
+      const container = document.getElementById("gallery-container");
+      const kw = keyword.trim().toLowerCase();
+      const filtered = HERO_SHOTS.filter(item => {
+        const matchCity = cityFilter === "ALL" || item.city === cityFilter;
+        const matchKw = !kw ||
+          item.title.toLowerCase().includes(kw) ||
+          item.filename.toLowerCase().includes(kw) ||
+          item.city_zh.toLowerCase().includes(kw) ||
+          item.note.toLowerCase().includes(kw) ||
+          item.tags.some(t => t.toLowerCase().includes(kw));
+        return matchCity && matchKw;
+      });
+
+      container.innerHTML = filtered.map(shot => {
+        const primarySrc = getPrimarySrc(shot.filename);
+        const fallbackSrc = getFallbackSrc(shot.filename);
+        const safeNote = shot.note.replace(/'/g, "\'");
+        const safeTitle = shot.title.replace(/'/g, "\'");
+        return `
+        <article class="photo-card">
+          <div class="photo-visual" style="background: ${shot.fallbackGradient};" onclick="openPhotoLightbox('${shot.filename}', '${safeTitle}', '${safeNote}')">
+            <img class="real-photo" src="${primarySrc}" alt="${shot.title}" loading="lazy" onerror="handleImgError(this, '${shot.filename}')" />
+            <div class="photo-top-bar">
+              <span class="path-chip">./photos/${shot.filename}</span>
+              <span class="score-badge">★ Score ${shot.score.toFixed(1)}</span>
+            </div>
+            <div class="visual-meta">
+              <div class="visual-filename">#${shot.rank} · ${shot.filename}</div>
+              <div class="visual-caption-title">${shot.title}</div>
+            </div>
+          </div>
+          <div class="photo-body">
+            <div>
+              <div class="tag-list">
+                ${shot.tags.map(t => `<span class="tag">${t}</span>`).join("")}
+              </div>
+              <p class="curator-note">${shot.note}</p>
+            </div>
+            <div class="card-footer">
+              <span>📍 ${shot.city_zh} · ${shot.date}</span>
+              <button class="wiki-link-btn" onclick="jumpToEntity('${shot.entity_id}')">[[${shot.entity_id}]]</button>
+            </div>
+          </div>
+        </article>
+      `}).join("") || `<p style="color:var(--text-muted);">找不到符合條件的精選照片。</p>`;
+    }
+
+    function renderEntities(keyword = "") {
+      const container = document.getElementById("entities-container");
+      const kw = keyword.trim().toLowerCase();
+      const filtered = ENTITIES.filter(e =>
+        !kw ||
+        e.entity_id.includes(kw) ||
+        e.name_zh.toLowerCase().includes(kw) ||
+        e.name_local.toLowerCase().includes(kw) ||
+        e.city_zh.toLowerCase().includes(kw) ||
+        e.highlights.some(h => h.toLowerCase().includes(kw))
+      );
+
+      container.innerHTML = filtered.map(ent => {
+        const primarySrc = getPrimarySrc(ent.best_photo);
+        const fallbackSrc = getFallbackSrc(ent.best_photo);
+        const safeTip = ent.curator_tip.replace(/'/g, "\'");
+        const safeName = ent.name_zh.replace(/'/g, "\'");
+        return `
+        <article class="entity-card" id="entity-${ent.entity_id}">
+          <div class="entity-cover" style="background:${ent.fallbackGradient};" onclick="openPhotoLightbox('${ent.best_photo}', '${safeName}', '${safeTip}')">
+            <img src="${primarySrc}" alt="${ent.name_zh}" loading="lazy" onerror="handleImgError(this, '${ent.best_photo}')" />
+            <div class="entity-cover-caption">
+              <span>./photos/${ent.best_photo}</span>
+              <span>🔍 點擊放大</span>
+            </div>
+          </div>
+          <div class="entity-content">
+            <div class="entity-top">
+              <span class="entity-slug">WIKI/entities/${ent.entity_id}.md</span>
+              <span class="entity-city">${ent.city_zh} · ${ent.visit_dates[0]}</span>
+            </div>
+            <div>
+              <h3 class="entity-title">${ent.name_zh}</h3>
+              <div class="entity-local">${ent.name_local}</div>
+            </div>
+            <div class="yaml-box">
+              <div><span class="yaml-key">entity_id:</span> <span class="yaml-str">"${ent.entity_id}"</span></div>
+              <div><span class="yaml-key">category:</span> <span class="yaml-str">"${ent.category}"</span></div>
+              <div><span class="yaml-key">coordinates:</span> [${ent.coordinates[0]}, ${ent.coordinates[1]}]</div>
+              <div><span class="yaml-key">best_photo:</span> <span class="yaml-str">"./photos/${ent.best_photo}"</span></div>
+            </div>
+            <ul class="entity-bullets">
+              ${ent.highlights.map(h => `<li>${h}</li>`).join("")}
+            </ul>
+            <div class="card-footer">
+              <span>🔗 關聯日誌：<code>[[${ent.timeline_slug}]]</code></span>
+              <button class="wiki-link-btn" onclick="openEntityModal('${ent.entity_id}')">展開完整百科卡片 →</button>
+            </div>
+          </div>
+        </article>
+      `}).join("");
+    }
+
+    function renderTimeline() {
+      const container = document.getElementById("timeline-container");
+      container.innerHTML = TIMELINE.map(item => {
+        const primarySrc = item.photo ? getPrimarySrc(item.photo) : "";
+        const fallbackSrc = item.photo ? getFallbackSrc(item.photo) : "";
+        return `
+        <div class="timeline-item" style="display:flex; gap:0.9rem; align-items:flex-start;">
+          ${item.photo ? `<img src="${primarySrc}" alt="${item.title}" style="width:88px; height:88px; object-fit:cover; border-radius:8px; flex-shrink:0; cursor:zoom-in;" onclick="openPhotoLightbox('${item.photo}', '${item.title}', '${item.desc.replace(/'/g, "")}')" onerror="handleImgError(this, '${item.photo}')" />` : ""}
+          <div>
+            <div class="timeline-day">${item.day}</div>
+            <div class="timeline-title">${item.title}</div>
+            <p class="timeline-desc">${formatWikiLinks(item.desc)}</p>
+          </div>
+        </div>
+      `}).join("");
+    }
+
+    function renderAnchors() {
+      const tbody = document.getElementById("anchors-tbody");
+      tbody.innerHTML = ANCHORS.map(a => {
+        const primarySrc = getPrimarySrc(a.filename);
+        const fallbackSrc = getFallbackSrc(a.filename);
+        const thumbHtml = `<img class="anchor-thumb" src="${primarySrc}" alt="${a.type}" onclick="openPhotoLightbox('${a.filename}', '${a.type}', '${a.summary.replace(/'/g, "")}')" onerror="handleImgError(this, '${a.filename}')" />`;
+        const entityBtn = a.entity_id
+          ? `<button class="wiki-link-btn" onclick="jumpToEntity('${a.entity_id}')">[[${a.entity_id}]]</button>`
+          : `<span style="font-size:0.82rem; color:var(--text-muted);">已歸檔至行程脈絡</span>`;
+        return `
+          <tr>
+            <td>${thumbHtml}</td>
+            <td><strong>${a.date}</strong><br><small>${a.dayLabel}</small></td>
+            <td>${a.type}<br><code style="font-size:0.75rem;">./photos/${a.filename}</code></td>
+            <td>${a.summary}</td>
+            <td>${entityBtn}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    let mapInstance = null;
+    function initMap() {
+      if (mapInstance) {
+        setTimeout(() => mapInstance.invalidateSize(), 150);
+        return;
+      }
+      mapInstance = L.map("italy-map").setView([42.85, 11.85], 6);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(mapInstance);
+
+      const latlngs = [];
+      ENTITIES.forEach(ent => {
+        latlngs.push(ent.coordinates);
+        const marker = L.marker(ent.coordinates).addTo(mapInstance);
+        const primarySrc = getPrimarySrc(ent.best_photo);
+        const fallbackSrc = getFallbackSrc(ent.best_photo);
+        marker.bindPopup(`
+          <div style="width:205px;">
+            <img src="${primarySrc}" style="width:100%; height:112px; object-fit:cover; border-radius:6px; margin-bottom:6px;" onerror="handleImgError(this, '${ent.best_photo}')" />
+            <strong>${ent.name_zh}</strong><br/>
+            <em style="font-size:0.8rem;">${ent.name_local}</em><br/>
+            <span style="font-size:0.8rem;">造訪日期：${ent.visit_dates[0]}</span>
+          </div>
+        `);
+      });
+
+      L.polyline(latlngs, { color: "#B85233", weight: 3, dashArray: "6, 6" }).addTo(mapInstance);
+    }
+
+    function switchTab(tabName) {
+      document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.tab === tabName);
+      });
+      document.querySelectorAll("section.panel").forEach(panel => {
+        panel.classList.toggle("active", panel.id === `panel-${tabName}`);
+      });
+      if (tabName === "map-timeline") {
+        initMap();
+      }
+    }
+
+    function jumpToEntity(slug) {
+      switchTab("entities");
+      setTimeout(() => {
+        const el = document.getElementById(`entity-${slug}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          el.classList.add("highlighted");
+          setTimeout(() => el.classList.remove("highlighted"), 2400);
+        }
+      }, 80);
+    }
+
+    function openEntityModal(slug) {
+      const ent = ENTITIES.find(e => e.entity_id === slug);
+      if (!ent) return;
+      const primarySrc = getPrimarySrc(ent.best_photo);
+      const fallbackSrc = getFallbackSrc(ent.best_photo);
+      document.getElementById("modal-content").innerHTML = `
+        <span class="entity-slug">[[${ent.entity_id}]]</span>
+        <h2 style="margin-top:0.5rem;">${ent.name_zh}</h2>
+        <p style="color:var(--text-muted); font-style:italic; margin-bottom:0.85rem;">${ent.name_local} · ${ent.city_zh} (${ent.coordinates.join(", ")})</p>
+        <img class="modal-photo-preview" src="${primarySrc}" onerror="handleImgError(this, '${ent.best_photo}')" alt="${ent.name_zh}" />
+        <div style="background:var(--bg-warm); padding:0.9rem 1rem; border-radius:10px; margin-bottom:1rem; font-size:0.9rem;">
+          <strong>代表主視覺：</strong> <code>./photos/${ent.best_photo}</code><br/>
+          <span>${ent.curator_tip}</span>
+        </div>
+        <h4 style="margin-bottom:0.5rem;">文化與建築導覽重點</h4>
+        <ul class="entity-bullets">
+          ${ent.highlights.map(h => `<li>${h}</li>`).join("")}
+        </ul>
+      `;
+      document.getElementById("entity-modal").classList.add("open");
+    }
+
+    function closeModal() {
+      document.getElementById("entity-modal").classList.remove("open");
+    }
+
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+    });
+
+    document.querySelectorAll("#city-filters .pill").forEach(pill => {
+      pill.addEventListener("click", () => {
+        document.querySelectorAll("#city-filters .pill").forEach(p => p.classList.remove("active"));
+        pill.classList.add("active");
+        renderGallery(pill.dataset.city, document.getElementById("global-search").value);
+      });
+    });
+
+    document.getElementById("global-search").addEventListener("input", (e) => {
+      const activeCity = document.querySelector("#city-filters .pill.active").dataset.city;
+      renderGallery(activeCity, e.target.value);
+      renderEntities(e.target.value);
+    });
+
+    renderGallery();
+    renderEntities();
+    renderTimeline();
+    renderAnchors();
+  </script>
+</body>
+</html>
